@@ -1,27 +1,37 @@
 #include <stdio.h>
-#include "img_ops.h"
+#include <stdlib.h>
+#include <string.h>
+#include "img_ops.h"   
+
+#define NUM_THREADS 6
 
 int main() {
-    if (!bmp_black_white("images.bmp", "bn.bmp")) {
-        printf("Error generando bn.bmp\n");
+    FILE *fptr;
+    char data[80] = "arc1.txt";
+    fptr = fopen(data, "w");
+    if (fptr == NULL) {
+        printf("Error opening file\n");
         return 1;
     }
-    if (!bmp_grayscale("images.bmp", "grises.bmp")) {
-        printf("Error generando grises.bmp\n");
-        return 1;
+    fprintf(fptr, "Ejemplo escribir en un archivo");
+    fclose(fptr);
+    system("mkdir -p results");
+
+    #pragma omp parallel
+    {
+        #pragma omp sections
+        {
+            #pragma omp section
+            inv_img("results/inv_1", "./img/images.bmp");
+            #pragma omp section
+            inv_img_grey_horizontal("results/espejo_gris", "./img/images.bmp");
+            #pragma omp section
+            inv_img_color("results/inv_color_1", "./img/images.bmp");
+            #pragma omp section
+            desenfoque("./img/images.bmp", "results/desenfoque", 27);
+            #pragma omp section
+            inv_img_color_horizontal("results/espejo_color", "./img/images.bmp");
+        }
     }
-    if (!bmp_flip_horizontal("images.bmp", "flip_h.bmp")) {
-        printf("Error generando flip_h.bmp\n");
-        return 1;
-    }
-    if (!bmp_flip_vertical("images.bmp", "flip_v.bmp")) {
-        printf("Error generando flip_v.bmp\n");
-        return 1;
-    }
-    if (!bmp_blur("images.bmp", "blur.bmp", 47)) {
-        printf("Error generando blur.bmp\n");
-        return 1;
-    }
-    printf("Listo. Archivos generados correctamente.\n");
     return 0;
 }

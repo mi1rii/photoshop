@@ -114,6 +114,28 @@ static unsigned char to_gray(unsigned char b, unsigned char g, unsigned char r) 
     return (unsigned char)(0.114f * b + 0.587f * g + 0.299f * r);
 }
 
+static void make_output_name(const char *prefix, char *out, size_t out_size) {
+    size_t len = strlen(prefix);
+    if (len >= 4 && strcmp(prefix + len - 4, ".bmp") == 0) {
+        snprintf(out, out_size, "%s", prefix);
+    } else {
+        snprintf(out, out_size, "%s.bmp", prefix);
+    }
+}
+
+static void invert_colors_in_place(Bmp24 *bmp) {
+    int y;
+    int x;
+    for (y = 0; y < bmp->height; y++) {
+        for (x = 0; x < bmp->width; x++) {
+            int idx = y * bmp->row_size + x * 3;
+            bmp->data[idx] = (unsigned char)(255 - bmp->data[idx]);
+            bmp->data[idx + 1] = (unsigned char)(255 - bmp->data[idx + 1]);
+            bmp->data[idx + 2] = (unsigned char)(255 - bmp->data[idx + 2]);
+        }
+    }
+}
+
 int bmp_black_white(const char *input_path, const char *output_path) {
     Bmp24 bmp;
     int y;
@@ -291,4 +313,107 @@ int bmp_blur(const char *input_path, const char *output_path, int kernel_size) {
     free(out_data);
     bmp_free(&bmp);
     return x;
+}
+
+int inv_img(const char *output_prefix, const char *input_path) {
+    char output_path[512];
+    make_output_name(output_prefix, output_path, sizeof(output_path));
+    return bmp_black_white(input_path, output_path);
+}
+
+int inv_img_grey_horizontal(const char *output_prefix, const char *input_path) {
+    Bmp24 bmp;
+    int y;
+    int x;
+    char output_path[512];
+
+    make_output_name(output_prefix, output_path, sizeof(output_path));
+    if (!bmp_read_24(input_path, &bmp)) {
+        return 0;
+    }
+
+    for (y = 0; y < bmp.height; y++) {
+        for (x = 0; x < bmp.width; x++) {
+            int idx = y * bmp.row_size + x * 3;
+            unsigned char gray = to_gray(bmp.data[idx], bmp.data[idx + 1], bmp.data[idx + 2]);
+            bmp.data[idx] = gray;
+            bmp.data[idx + 1] = gray;
+            bmp.data[idx + 2] = gray;
+        }
+    }
+
+    for (y = 0; y < bmp.height; y++) {
+        for (x = 0; x < bmp.width / 2; x++) {
+            int left = y * bmp.row_size + x * 3;
+            int right = y * bmp.row_size + (bmp.width - 1 - x) * 3;
+            unsigned char tb = bmp.data[left];
+            unsigned char tg = bmp.data[left + 1];
+            unsigned char tr = bmp.data[left + 2];
+            bmp.data[left] = bmp.data[right];
+            bmp.data[left + 1] = bmp.data[right + 1];
+            bmp.data[left + 2] = bmp.data[right + 2];
+            bmp.data[right] = tb;
+            bmp.data[right + 1] = tg;
+            bmp.data[right + 2] = tr;
+        }
+    }
+
+    y = bmp_write_24(output_path, &bmp, bmp.data);
+    bmp_free(&bmp);
+    return y;
+}
+
+int inv_img_color(const char *output_prefix, const char *input_path) {
+    Bmp24 bmp;
+    int ok;
+    char output_path[512];
+
+    make_output_name(output_prefix, output_path, sizeof(output_path));
+    if (!bmp_read_24(input_path, &bmp)) {
+        return 0;
+    }
+
+    invert_colors_in_place(&bmp);
+    ok = bmp_write_24(output_path, &bmp, bmp.data);
+    bmp_free(&bmp);
+    return ok;
+}
+
+int desenfoque(const char *input_path, const char *output_prefix, int kernel_size) {
+    char output_path[512];
+    make_output_name(output_prefix, output_path, sizeof(output_path));
+    return bmp_blur(input_path, output_path, kernel_size);
+}
+
+int inv_img_color_horizontal(const char *output_prefix, const char *input_path) {
+    Bmp24 bmp;
+    int y;
+    int x;
+    char output_path[512];
+
+    make_output_name(output_prefix, output_path, sizeof(output_path));
+    if (!bmp_read_24(input_path, &bmp)) {
+        return 0;
+    }
+
+    invert_colors_in_place(&bmp);
+    for (y = 0; y < bmp.height; y++) {
+        for (x = 0; x < bmp.width / 2; x++) {
+            int left = y * bmp.row_size + x * 3;
+            int right = y * bmp.row_size + (bmp.width - 1 - x) * 3;
+            unsigned char tb = bmp.data[left];
+            unsigned char tg = bmp.data[left + 1];
+            unsigned char tr = bmp.data[left + 2];
+            bmp.data[left] = bmp.data[right];
+            bmp.data[left + 1] = bmp.data[right + 1];
+            bmp.data[left + 2] = bmp.data[right + 2];
+            bmp.data[right] = tb;
+            bmp.data[right + 1] = tg;
+            bmp.data[right + 2] = tr;
+        }
+    }
+
+    y = bmp_write_24(output_path, &bmp, bmp.data);
+    bmp_free(&bmp);
+    return y;
 }
