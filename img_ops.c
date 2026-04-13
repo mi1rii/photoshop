@@ -174,9 +174,10 @@ int bmp_grayscale(const char *input_path, const char *output_path) {
         for (x = 0; x < bmp.width; x++) {
             int idx = y * bmp.row_size + x * 3;
             unsigned char gray = to_gray(bmp.data[idx], bmp.data[idx + 1], bmp.data[idx + 2]);
-            bmp.data[idx] = gray;
-            bmp.data[idx + 1] = gray;
-            bmp.data[idx + 2] = gray;
+            unsigned char bw = (gray >= 128) ? 255 : 0;
+            bmp.data[idx] = bw;
+            bmp.data[idx + 1] = bw;
+            bmp.data[idx + 2] = bw;
         }
     }
 
@@ -315,6 +316,83 @@ int bmp_blur(const char *input_path, const char *output_path, int kernel_size) {
     return x;
 }
 
+int bmp_blur_grayscale(const char *input_path, const char *output_path, int kernel_size) {
+    Bmp24 bmp;
+    unsigned char *out_data;
+    int radius;
+    int y;
+    int x;
+
+    if (kernel_size < 1) {
+        kernel_size = 1;
+    }
+    if (kernel_size % 2 == 0) {
+        kernel_size += 1;
+    }
+    radius = kernel_size / 2;
+
+    if (!bmp_read_24(input_path, &bmp)) {
+        return 0;
+    }
+
+    /* Convert first to grayscale, then blur grayscale values. */
+    for (y = 0; y < bmp.height; y++) {
+        for (x = 0; x < bmp.width; x++) {
+            int idx = y * bmp.row_size + x * 3;
+            unsigned char gray = to_gray(bmp.data[idx], bmp.data[idx + 1], bmp.data[idx + 2]);
+            bmp.data[idx] = gray;
+            bmp.data[idx + 1] = gray;
+            bmp.data[idx + 2] = gray;
+        }
+    }
+
+    out_data = (unsigned char *)malloc((size_t)bmp.data_size);
+    if (out_data == NULL) {
+        bmp_free(&bmp);
+        return 0;
+    }
+    memcpy(out_data, bmp.data, (size_t)bmp.data_size);
+
+    for (y = 0; y < bmp.height; y++) {
+        for (x = 0; x < bmp.width; x++) {
+            int ky;
+            int kx;
+            int count = 0;
+            int sum_gray = 0;
+            int out_idx = y * bmp.row_size + x * 3;
+
+            for (ky = -radius; ky <= radius; ky++) {
+                int ny = y + ky;
+                if (ny < 0 || ny >= bmp.height) {
+                    continue;
+                }
+                for (kx = -radius; kx <= radius; kx++) {
+                    int nx = x + kx;
+                    int in_idx;
+                    if (nx < 0 || nx >= bmp.width) {
+                        continue;
+                    }
+                    in_idx = ny * bmp.row_size + nx * 3;
+                    sum_gray += bmp.data[in_idx];
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                unsigned char gray = (unsigned char)(sum_gray / count);
+                out_data[out_idx] = gray;
+                out_data[out_idx + 1] = gray;
+                out_data[out_idx + 2] = gray;
+            }
+        }
+    }
+
+    x = bmp_write_24(output_path, &bmp, out_data);
+    free(out_data);
+    bmp_free(&bmp);
+    return x;
+}
+
 int inv_img(const char *output_prefix, const char *input_path) {
     char output_path[512];
     make_output_name(output_prefix, output_path, sizeof(output_path));
@@ -364,8 +442,15 @@ int inv_img_grey_horizontal(const char *output_prefix, const char *input_path) {
 }
 
 int inv_img_color(const char *output_prefix, const char *input_path) {
+    char output_path[512];
+    make_output_name(output_prefix, output_path, sizeof(output_path));
+    return bmp_flip_vertical(input_path, output_path);
+}
+
+int inv_img_bn_vertical(const char *output_prefix, const char *input_path) {
     Bmp24 bmp;
-    int ok;
+    int y;
+    int x;
     char output_path[512];
 
     make_output_name(output_prefix, output_path, sizeof(output_path));
@@ -373,16 +458,43 @@ int inv_img_color(const char *output_prefix, const char *input_path) {
         return 0;
     }
 
-    invert_colors_in_place(&bmp);
-    ok = bmp_write_24(output_path, &bmp, bmp.data);
+    for (y = 0; y < bmp.height; y++) {
+        for (x = 0; x < bmp.width; x++) {
+            int idx = y * bmp.row_size + x * 3;
+            unsigned char gray = to_gray(bmp.data[idx], bmp.data[idx + 1], bmp.data[idx + 2]);
+            unsigned char bw = (gray >= 128) ? 255 : 0;
+            bmp.data[idx] = bw;
+            bmp.data[idx + 1] = bw;
+            bmp.data[idx + 2] = bw;
+        }
+    }
+
+    for (y = 0; y < bmp.height / 2; y++) {
+        int top = y * bmp.row_size;
+        int bottom = (bmp.height - 1 - y) * bmp.row_size;
+        int i;
+        for (i = 0; i < bmp.row_size; i++) {
+            unsigned char tmp = bmp.data[top + i];
+            bmp.data[top + i] = bmp.data[bottom + i];
+            bmp.data[bottom + i] = tmp;
+        }
+    }
+
+    y = bmp_write_24(output_path, &bmp, bmp.data);
     bmp_free(&bmp);
-    return ok;
+    return y;
 }
 
 int desenfoque(const char *input_path, const char *output_prefix, int kernel_size) {
     char output_path[512];
     make_output_name(output_prefix, output_path, sizeof(output_path));
     return bmp_blur(input_path, output_path, kernel_size);
+}
+
+int desenfoque_gris(const char *input_path, const char *output_prefix, int kernel_size) {
+    char output_path[512];
+    make_output_name(output_prefix, output_path, sizeof(output_path));
+    return bmp_blur_grayscale(input_path, output_path, kernel_size);
 }
 
 int inv_img_color_horizontal(const char *output_prefix, const char *input_path) {
@@ -396,7 +508,6 @@ int inv_img_color_horizontal(const char *output_prefix, const char *input_path) 
         return 0;
     }
 
-    invert_colors_in_place(&bmp);
     for (y = 0; y < bmp.height; y++) {
         for (x = 0; x < bmp.width / 2; x++) {
             int left = y * bmp.row_size + x * 3;

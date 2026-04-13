@@ -28,7 +28,11 @@ int main() {
             #pragma omp section
             inv_img_color("results/inv_color_1", "./img/images.bmp");
             #pragma omp section
+            inv_img_bn_vertical("results/inv_bn_vertical", "./img/images.bmp");
+            #pragma omp section
             desenfoque("./img/images.bmp", "results/desenfoque", 27);
+            #pragma omp section
+            desenfoque_gris("./img/images.bmp", "results/desenfoque_bn", 27);
             #pragma omp section
             inv_img_color_horizontal("results/espejo_color", "./img/images.bmp");
         }
