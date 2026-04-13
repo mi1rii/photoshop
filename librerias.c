@@ -1,27 +1,26 @@
 #include <stdio.h>
-#include "img_ops.h"
+#include <stdlib.h>
+#include <string.h>
+#include "selec_proc.h"
+#include "selec_proc_1.h"
 
-int main() {
-    if (!bmp_black_white("images.bmp", "bn.bmp")) {
-        printf("Error generando bn.bmp\n");
+int main(){
+    FILE *archivo;
+    char data[80] = "arc1.txt";
+    archivo = fopen(data, "w");
+    if (archivo == NULL){
+        printf("Error al abrir el archivo");
         return 1;
     }
-    if (!bmp_grayscale("images.bmp", "grises.bmp")) {
-        printf("Error generando grises.bmp\n");
-        return 1;
-    }
-    if (!bmp_flip_horizontal("images.bmp", "flip_h.bmp")) {
-        printf("Error generando flip_h.bmp\n");
-        return 1;
-    }
-    if (!bmp_flip_vertical("images.bmp", "flip_v.bmp")) {
-        printf("Error generando flip_v.bmp\n");
-        return 1;
-    }
-    if (!bmp_blur("images.bmp", "blur.bmp", 47)) {
-        printf("Error generando blur.bmp\n");
-        return 1;
-    }
-    printf("Listo. Archivos generados correctamente.\n");
+    fprintf(archivo, "Ejemplo escribir\n");
+    fprintf(archivo, "Estefania Antonio\n");
+    fclose(archivo);
+
+    inv_img("inv_1","prueba1.bmp");
+    inv_img_lado("inv_1_lado","prueba1.bmp");
+    inv_img_color("inv_1_color","prueba1.bmp");
+    inv_img_color_lado("inv_1_color_lado","prueba1.bmp");
+    desenfoque_bn("prueba1.bmp","desenfoque_bn.bmp", 47);
+    desenfoque_color("prueba1.bmp","desenfoque_color.bmp", 47);
     return 0;
 }
