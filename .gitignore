@@ -2,3 +2,4 @@ img/*
 results/*
 !img/.gitkeep
 !results/.gitkeep
+librerias
