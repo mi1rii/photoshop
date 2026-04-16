@@ -18,7 +18,7 @@ int main() {
     fprintf(fptr, "Ejemplo escribir en un archivo");
     fclose(fptr);
 
-    // Array de imágenes a procesar
+    // se crea un array para guardar las rutas de las imágenes a procesar
     const char *images[] = {
         "./img/miri.bmp",
         "./img/kong.bmp",
@@ -27,27 +27,26 @@ int main() {
     };
     int num_images = 4;
 
-    // Array 
+    // Array de treads a probar
     int thread_configs[] = {6, 12, 18};
     int num_configs = 3;
 
-    // Ejecutar 3 veces con diferente número de threads
+    // un for para cada configuración de threads 
     for (int config_idx = 0; config_idx < num_configs; config_idx++) {
         int num_threads = thread_configs[config_idx];
         printf("%d threads:\n", num_threads);
         
         clock_t start_time = clock();
         
-        // Procesar cada imagen
+        // otro for para procesar cada imagen con esa configuración de threads
         for (int img_idx = 0; img_idx < num_images; img_idx++) {
-            // Extraer nombre base de la imagen (sin ruta ni extensión)
             char img_name[50];
             const char *filename = strrchr(images[img_idx], '/') + 1;
             strcpy(img_name, filename);
             char *dot = strrchr(img_name, '.');
             if (dot) *dot = '\0';
             
-            // Agregar sufijo de threads al nombre
+            // se crea un nuevo nombre para cada imagen que incluya el número de threads usados
             char img_name_with_threads[80];
             sprintf(img_name_with_threads, "%s_t%d", img_name, num_threads);
             
