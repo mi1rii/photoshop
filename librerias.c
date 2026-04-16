@@ -27,7 +27,7 @@ int main() {
     };
     int num_images = 4;
 
-    // Array de configuraciones de threads
+    // Array 
     int thread_configs[] = {6, 12, 18};
     int num_configs = 3;
 
