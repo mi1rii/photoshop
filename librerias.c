@@ -39,50 +39,52 @@ int main() {
         int threads_used = 0;
         printf("Configuracion solicitada: %d threads\n", num_threads);
 
+        double start_time = omp_get_wtime();
+        
+        // Task parallelism: se crean tareas manualmente para cada imagen.
         #pragma omp parallel num_threads(num_threads)
         {
             #pragma omp single
             {
                 threads_used = omp_get_num_threads();
+
+                for (int img_idx = 0; img_idx < num_images; img_idx++) {
+                    #pragma omp task firstprivate(img_idx, num_threads)
+                    {
+                        char img_name[50];
+                        const char *filename = strrchr(images[img_idx], '/') + 1;
+                        strcpy(img_name, filename);
+                        char *dot = strrchr(img_name, '.');
+                        if (dot) *dot = '\0';
+
+                        // se crea un nuevo nombre para cada imagen que incluya el número de threads usados
+                        char img_name_with_threads[80];
+                        snprintf(img_name_with_threads, sizeof(img_name_with_threads), "%s_t%d", img_name, num_threads);
+
+                        char output[100];
+                        snprintf(output, sizeof(output), "results/%s_inv", img_name_with_threads);
+                        inv_img(output, images[img_idx]);
+
+                        snprintf(output, sizeof(output), "results/%s_espejo_gris", img_name_with_threads);
+                        inv_img_grey_horizontal(output, images[img_idx]);
+
+                        snprintf(output, sizeof(output), "results/%s_inv_color", img_name_with_threads);
+                        inv_img_color(output, images[img_idx]);
+
+                        snprintf(output, sizeof(output), "results/%s_inv_bn_vertical", img_name_with_threads);
+                        inv_img_bn_vertical(output, images[img_idx]);
+
+                        snprintf(output, sizeof(output), "results/%s_desenfoque", img_name_with_threads);
+                        desenfoque(images[img_idx], output, 27);
+
+                        snprintf(output, sizeof(output), "results/%s_desenfoque_bn", img_name_with_threads);
+                        desenfoque_gris(images[img_idx], output, 27);
+
+                        snprintf(output, sizeof(output), "results/%s_espejo_color", img_name_with_threads);
+                        inv_img_color_horizontal(output, images[img_idx]);
+                    }
+                }
             }
-        }
-        
-        double start_time = omp_get_wtime();
-        
-        // Data parallelism: cada thread procesa imágenes distintas del arreglo.
-        #pragma omp parallel for num_threads(num_threads) schedule(static)
-        for (int img_idx = 0; img_idx < num_images; img_idx++) {
-            char img_name[50];
-            const char *filename = strrchr(images[img_idx], '/') + 1;
-            strcpy(img_name, filename);
-            char *dot = strrchr(img_name, '.');
-            if (dot) *dot = '\0';
-            
-            // se crea un nuevo nombre para cada imagen que incluya el número de threads usados
-            char img_name_with_threads[80];
-            snprintf(img_name_with_threads, sizeof(img_name_with_threads), "%s_t%d", img_name, num_threads);
-
-            char output[100];
-            snprintf(output, sizeof(output), "results/%s_inv", img_name_with_threads);
-            inv_img(output, images[img_idx]);
-
-            snprintf(output, sizeof(output), "results/%s_espejo_gris", img_name_with_threads);
-            inv_img_grey_horizontal(output, images[img_idx]);
-
-            snprintf(output, sizeof(output), "results/%s_inv_color", img_name_with_threads);
-            inv_img_color(output, images[img_idx]);
-
-            snprintf(output, sizeof(output), "results/%s_inv_bn_vertical", img_name_with_threads);
-            inv_img_bn_vertical(output, images[img_idx]);
-
-            snprintf(output, sizeof(output), "results/%s_desenfoque", img_name_with_threads);
-            desenfoque(images[img_idx], output, 27);
-
-            snprintf(output, sizeof(output), "results/%s_desenfoque_bn", img_name_with_threads);
-            desenfoque_gris(images[img_idx], output, 27);
-
-            snprintf(output, sizeof(output), "results/%s_espejo_color", img_name_with_threads);
-            inv_img_color_horizontal(output, images[img_idx]);
         }
         
         double end_time = omp_get_wtime();
